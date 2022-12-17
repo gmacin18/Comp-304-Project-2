@@ -38,9 +38,8 @@ pthread_mutex_t mutex_packaging;	//to block changes to the packaging queue
 pthread_mutex_t mutex_handler_type4;    //to handle type4 gift, used when checking both painting and QA queues
 pthread_mutex_t mutex_handler_type5;	//to handle type5 gift, used when checking both assembly and QA queues
 
-pthread_mutex_t mutex_task;
-pthread_mutex_t mutex_log;
-pthread_mutex_t mutex_taskID;
+pthread_mutex_t mutex_log;		//to block changes to log file
+pthread_mutex_t mutex_taskID;		//to block changes taskID
 
 
 int taskID = 0;
