@@ -18,9 +18,8 @@ void PrintQueue(Queue *q);
 void* ElfA(void *arg); // the one that can paint
 void* ElfB(void *arg); // the one that can assemble
 void* Santa(void *arg); 
-void* ControlThread(void *arg); // handles printing and queues (up to you)
+//void* ControlThread(void *arg); // handles printing and queues (up to you)
 void* GiftRequest(void *arg);
-void* Controller(void *arg);
 void recordLog(int taskID, Task t, char *worker, char taskType, int request_time, int tt);
 void *PrintCurrentQueues(void *arg);
 
@@ -29,17 +28,15 @@ Queue *painting;			//the queue that painting jobs were first placed when they we
 Queue *packaging; 			//the queue that packaging jobs were first placed when they were created
 Queue *QA;				//the queue that QA jobs were first placed when they were created
 Queue *delivering;			//the queue that delivering jobs were first placed when they were created
-Queue *type4;
-Queue *type5;
 
 
 pthread_mutex_t mutex_assembly;		//to block changes to the assembly queue
 pthread_mutex_t mutex_painting;		//to block changes to the painting queue
 pthread_mutex_t mutex_QA;		//to block changes to the QA queue
 pthread_mutex_t mutex_delivering;	//to block changes to the delivering queue	
-pthread_mutex_t mutex_packaging;
-pthread_mutex_t mutex_handler_type4;
-pthread_mutex_t mutex_handler_type5;
+pthread_mutex_t mutex_packaging;	//to block changes to the packaging queue
+pthread_mutex_t mutex_handler_type4;    //to handle type4 gift, used when checking both painting and QA queues
+pthread_mutex_t mutex_handler_type5;	//to handle type5 gift, used when checking both assembly and QA queues
 
 pthread_mutex_t mutex_task;
 pthread_mutex_t mutex_log;
@@ -120,16 +117,12 @@ int main(int argc,char **argv){
     assembly = ConstructQueue(1000);
     QA = ConstructQueue(1000);
     delivering = ConstructQueue(1000);
-    type4 = ConstructQueue(1000);
-    type5 = ConstructQueue(1000);
-
 
     pthread_t elf_a;
     pthread_t elf_b;
     pthread_t santa;
     pthread_t gift_request_t;
     pthread_t print_queues_t;
-
 
     pthread_create(&elf_a, NULL, &ElfA, NULL);
     pthread_create(&elf_b, NULL, &ElfB, NULL);
@@ -150,8 +143,6 @@ int main(int argc,char **argv){
     DestructQueue(assembly);
     DestructQueue(QA);
     DestructQueue(delivering);
-    DestructQueue(type4);
-    DestructQueue(type5);
     
     return 0;
 }
@@ -159,8 +150,7 @@ int main(int argc,char **argv){
 void* ElfA(void *arg){
 	while(time(NULL) < simulationEndTime){
 		pthread_mutex_lock(&mutex_packaging);
-		if(!isEmpty(packaging)){
-		//	pthread_mutex_unlock(&mutex_packaging);
+		if(!isEmpty(packaging)){		//prioritize packaging
 
 			pthread_mutex_lock(&mutex_log);
 			pthread_mutex_lock(&mutex_taskID);
@@ -168,7 +158,6 @@ void* ElfA(void *arg){
 			int id = taskID;
 			pthread_mutex_unlock(&mutex_taskID);
 
-		//	pthread_mutex_lock(&mutex_packaging);
 			Task t = Dequeue(packaging);
 			pthread_mutex_unlock(&mutex_packaging);
 
@@ -192,8 +181,7 @@ void* ElfA(void *arg){
 				NODE *curr = painting->head;
 				int curr_id = curr->data.ID;
 
-				if(curr->data.type == 2){
-				//	pthread_mutex_unlock(&mutex_painting);
+				if(curr->data.type == 2){		//type2 gift, enqueue normally when the task is done
 
 					pthread_mutex_lock(&mutex_log);
 					pthread_mutex_lock(&mutex_taskID);
@@ -201,7 +189,6 @@ void* ElfA(void *arg){
 					int id = taskID;
 					pthread_mutex_unlock(&mutex_taskID);
 
-				 //       pthread_mutex_lock(&mutex_painting);
 					Task t = Dequeue(painting);
 					pthread_mutex_unlock(&mutex_painting);
 
@@ -216,8 +203,7 @@ void* ElfA(void *arg){
 					Enqueue(packaging, t);
 					pthread_mutex_unlock(&mutex_packaging);
 
-				}else{
-				//	pthread_mutex_unlock(&mutex_painting);
+				}else{					//type4 gift, check QA queue, enqueue if it is necessary
 
 					pthread_mutex_lock(&mutex_log);
 					pthread_mutex_lock(&mutex_taskID);
@@ -227,7 +213,6 @@ void* ElfA(void *arg){
 
 					pthread_mutex_lock(&mutex_handler_type4);
 
-				//        pthread_mutex_lock(&mutex_painting);
 					Task t = Dequeue(painting);
 					pthread_mutex_unlock(&mutex_painting);
 
@@ -268,8 +253,7 @@ void* ElfA(void *arg){
 void* ElfB(void *arg){
         while(time(NULL) < simulationEndTime){
                 pthread_mutex_lock(&mutex_packaging);
-                if(!isEmpty(packaging)){
-               //         pthread_mutex_unlock(&mutex_packaging);
+                if(!isEmpty(packaging)){		//prioritize packaging
 
 			pthread_mutex_lock(&mutex_log);
 			pthread_mutex_lock(&mutex_taskID);
@@ -277,7 +261,6 @@ void* ElfB(void *arg){
 			int id = taskID;
 			pthread_mutex_unlock(&mutex_taskID);
 
-              //  	pthread_mutex_lock(&mutex_packaging);
 			Task t = Dequeue(packaging);
                         pthread_mutex_unlock(&mutex_packaging);
 
@@ -299,8 +282,7 @@ void* ElfB(void *arg){
 			if(!isEmpty(assembly)){
 				NODE *curr = assembly->head;
 				int curr_id = curr->data.ID;
-				if(curr->data.type == 3){
-			//		pthread_mutex_unlock(&mutex_assembly);
+				if(curr->data.type == 3){		//type3 gift, enqueue normally when the task is done
 
 					pthread_mutex_lock(&mutex_log);
 					pthread_mutex_lock(&mutex_taskID);
@@ -308,7 +290,6 @@ void* ElfB(void *arg){
 					int id = taskID;
 					pthread_mutex_unlock(&mutex_taskID);
 
-			//	        pthread_mutex_lock(&mutex_assembly);
 					Task t = Dequeue(assembly);
 					pthread_mutex_unlock(&mutex_assembly);
 
@@ -323,8 +304,7 @@ void* ElfB(void *arg){
 					Enqueue(packaging, t);
 					pthread_mutex_unlock(&mutex_packaging);
 
-				}else{ //type5 gift
-			//		pthread_mutex_unlock(&mutex_assembly);
+				}else{ 					//type5 gift, check QA queue, enqueue if it is necessary
 
 					pthread_mutex_lock(&mutex_log);
 					pthread_mutex_lock(&mutex_taskID);
@@ -334,7 +314,6 @@ void* ElfB(void *arg){
 
 					pthread_mutex_lock(&mutex_handler_type5);					
 
-			//	        pthread_mutex_lock(&mutex_assembly);
 					Task t = Dequeue(assembly);
 					pthread_mutex_unlock(&mutex_assembly);
 
@@ -377,40 +356,17 @@ void* ElfB(void *arg){
 }
 
 // manages Santa's tasks
-void* Santa(void *arg){                                        //DELIVERY LOCK ORDER MAY CHANGE!!!!
+void* Santa(void *arg){                                       
         while(time(NULL) < simulationEndTime){
                 pthread_mutex_lock(&mutex_delivering);
-	/*	NODE *curr = type4->head;
-		int type4_qa = 0;
-		int type5_qa = 0;
-		while (curr != NULL)
-		{
-		    if(curr->data.QA_status==0){//do the first QA job among type5 gifts and send it to packaging queue if ready
-			type4_qa++;
-		    }
-		    curr = curr->prev;
-		}
 
-		NODE *curr = type5->head;
-		while (curr != NULL)
-		{
-		    if(curr->data.QA_status==0){//do the first QA job among type5 gifts and send it to packaging queue if ready
-			type5_qa++;
-		    }
-		    curr = curr->prev;
-		}
-
-		waiting_qa = type4_qa + type5_qa; */
-
-                if(!isEmpty(delivering)/* && waiting_qa < 3*/){
-             //           pthread_mutex_unlock(&mutex_delivering);
+                if(!isEmpty(delivering)){		//prioritize delivering
 			pthread_mutex_lock(&mutex_log);
 			pthread_mutex_lock(&mutex_taskID);
 			taskID++;
 			int id = taskID;
 			pthread_mutex_unlock(&mutex_taskID);
 
-               // 	pthread_mutex_lock(&mutex_delivering);
                         Task t = Dequeue(delivering);
                         pthread_mutex_unlock(&mutex_delivering);
 
@@ -428,8 +384,7 @@ void* Santa(void *arg){                                        //DELIVERY LOCK O
 				NODE *curr = QA->head;
 				int curr_id = curr->data.ID;
 
-				if(curr->data.type == 4){ //type4 gift
-			//		pthread_mutex_unlock(&mutex_QA);
+				if(curr->data.type == 4){			//type4 gift, check painting queue, enqueue if it is necessary
 					pthread_mutex_lock(&mutex_log);
 					pthread_mutex_lock(&mutex_taskID);
 					taskID++;
@@ -437,7 +392,7 @@ void* Santa(void *arg){                                        //DELIVERY LOCK O
 					pthread_mutex_unlock(&mutex_taskID);
 
 					pthread_mutex_lock(&mutex_handler_type4);
-			//		pthread_mutex_lock(&mutex_QA);
+
 				        Task t = Dequeue(QA);
 				        pthread_mutex_unlock(&mutex_QA);
 
@@ -467,8 +422,8 @@ void* Santa(void *arg){                                        //DELIVERY LOCK O
 						pthread_mutex_unlock(&mutex_packaging);
 					}
 
-				}else{ //type5 gift
-			//		pthread_mutex_unlock(&mutex_QA);
+				}else{						//type5 gift, check assembly queue, enqueue if it is necessary
+
 					pthread_mutex_lock(&mutex_log);
 					pthread_mutex_lock(&mutex_taskID);
 					taskID++;
@@ -476,7 +431,7 @@ void* Santa(void *arg){                                        //DELIVERY LOCK O
 					pthread_mutex_unlock(&mutex_taskID);
 
 					pthread_mutex_lock(&mutex_handler_type5);
-			//		pthread_mutex_lock(&mutex_QA);
+
 				        Task t = Dequeue(QA);
 				        pthread_mutex_unlock(&mutex_QA);
 
@@ -606,10 +561,6 @@ void recordLog(int taskID, Task t, char *worker, char taskType, int request_time
     fclose(fptr);
 }
 
-// the function that controls queues and output
-void* ControlThread(void *arg){
-
-}
 
 
 void PrintQueue(Queue *q){
@@ -659,8 +610,8 @@ void *PrintCurrentQueues(void *arg){
 	    	printf("\n");
 	}
         pthread_sleep(1);
+
     }
     return NULL;
 }
-
 
