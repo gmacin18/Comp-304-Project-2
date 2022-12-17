@@ -19,5 +19,5 @@ All parts are working.
 ## Part 3:
 	When creating gifts for the first time, we checked whether the time is multiple of 30 to see whether the gift is coming from New Zealand.  If so, we inserted the particular gift to the beginning of the queue corresponding to the first  required task. After dequeuing the tasks, we had ElfA,ElfB and Santa check if the dequeued task came from New Zealand and if so, insert it at the top of the next task’s queue. We performed the mentioned operation by checking whether the arrival time of the dequeued task is a multiple of 30. With this implementation, we were able to prioritize the gifts coming from New Zealand for every task it requires. 
 
-Part 4:
+## Part 4:
 	We kept track of all the relevant logs by calling the recordLog function right after the completion of tasks in Santa, ElfA and ElfB functions. 
