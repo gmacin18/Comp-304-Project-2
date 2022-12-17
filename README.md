@@ -5,7 +5,7 @@ Gülbarin Maçin-69163
 
 
 All parts are working. 
-Part 1:
+#Part 1:
 	We created 5 threads to run with ElfA, ElfB, Santa, GiftRequest and PrintCurrentQueues functions. When controlling job flow we carefully used mutex locks and unlocks to avoid possible race conditions and deadlocks.
 	GiftRequest handles the creation of the gift according to given probabilities. 
 	PrintCurrentQueues prints the each task on the queues each second starting from given n second. 
